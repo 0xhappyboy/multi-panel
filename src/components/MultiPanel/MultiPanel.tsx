@@ -4,27 +4,18 @@ export interface MultiPanelTheme {
     splitterColor: string;
     splitterHoverColor: string;
     splitterActiveColor: string;
-    splitterHandleColor: string;
-    splitterHandleHoverColor: string;
-    splitterHandleActiveColor: string;
 }
 
 const MultiPanelThemes = {
     light: {
-        splitterColor: '#f0f0f0',
+        splitterColor: '#e8e8e8',
         splitterHoverColor: '#d9d9d9',
-        splitterActiveColor: '#1890ff',
-        splitterHandleColor: '#ccc',
-        splitterHandleHoverColor: '#999',
-        splitterHandleActiveColor: '#1890ff'
+        splitterActiveColor: '#e8e8e8'
     } as MultiPanelTheme,
     dark: {
-        splitterColor: '#303030',
-        splitterHoverColor: '#434343',
-        splitterActiveColor: '#177ddc',
-        splitterHandleColor: '#595959',
-        splitterHandleHoverColor: '#8c8c8c',
-        splitterHandleActiveColor: '#177ddc'
+        splitterColor: '#434343',
+        splitterHoverColor: '#595959',
+        splitterActiveColor: '#434343'
     } as MultiPanelTheme
 };
 
@@ -172,8 +163,8 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
     }
 
     render() {
-        const { direction = 'horizontal', splitterSize = 8, children } = this.props;
-        const { isDragging, activeSplitter, paneSizes } = this.state;
+        const { direction = 'horizontal', splitterSize = 2, children } = this.props;
+        const { isDragging, paneSizes } = this.state;
         const childrenArray = React.Children.toArray(children);
         const containerStyle: React.CSSProperties = {
             display: 'flex',
@@ -184,15 +175,11 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
             overflow: 'hidden'
         };
         const theme = this.getTheme();
-        const splitterStyle = {
-            backgroundColor: isDragging && activeSplitter !== null ? theme.splitterActiveColor : theme.splitterColor,
-            ':hover': {
-                backgroundColor: theme.splitterHoverColor
-            }
-        };
+
         if (paneSizes.length === 0 || paneSizes.length !== childrenArray.length) {
             return <div ref={this.containerRef} style={containerStyle}>Loading...</div>;
         }
+
         return (
             <div ref={this.containerRef} style={containerStyle}>
                 {childrenArray.map((child, index) => (
@@ -214,15 +201,14 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                                 style={{
                                     [direction === 'horizontal' ? 'width' : 'height']: `${splitterSize}px`,
                                     cursor: direction === 'horizontal' ? 'col-resize' : 'row-resize',
-                                    backgroundColor: isDragging && activeSplitter === index ? theme.splitterActiveColor : theme.splitterColor,
+                                    backgroundColor: theme.splitterColor,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     position: 'relative',
                                     flexShrink: 0,
                                     userSelect: 'none',
-                                    zIndex: 1,
-                                    transition: 'background-color 0.2s ease'
+                                    zIndex: 1
                                 } as React.CSSProperties}
                                 onMouseDown={(e) => this.handleMouseDown(index, e)}
                                 onMouseEnter={(e) => {
@@ -235,17 +221,7 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                                         e.currentTarget.style.backgroundColor = theme.splitterColor;
                                     }
                                 }}
-                            >
-                                <div
-                                    style={{
-                                        width: direction === 'horizontal' ? '2px' : '20px',
-                                        height: direction === 'horizontal' ? '20px' : '2px',
-                                        backgroundColor: isDragging && activeSplitter === index ? theme.splitterHandleActiveColor : theme.splitterHandleColor,
-                                        borderRadius: '1px',
-                                        transition: 'background-color 0.2s ease'
-                                    }}
-                                />
-                            </div>
+                            />
                         )}
                     </React.Fragment>
                 ))}
