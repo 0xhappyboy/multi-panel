@@ -3,6 +3,7 @@
   "version": "1.0.5",
   "description": "A front-end component that supports dynamic area segmentation and nesting of multiple panels.",
   "license": "Apache2.0",
+  "author": "happyboy",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xhappyboy/multi-panel.git"
@@ -17,7 +18,6 @@
     "multi panel",
     "panel split"
   ],
-  "author": "happyboy",
   "type": "module",
   "microbundle": {
     "entries": [
