@@ -45,21 +45,21 @@ export class Panel extends React.Component<PanelProps> {
 
 export interface MultiPanelProps {
     direction?: 'horizontal' | 'vertical';
-    initialSizes?: number[]; 
-    minSize?: number; 
+    initialSizes?: number[];
+    minSize?: number;
     splitterSize?: number;
     children?: React.ReactNode;
     theme?: 'light' | 'dark' | MultiPanelTheme;
     onPaneSizesChange?: (sizes: number[]) => void;
-    style?: React.CSSProperties; 
+    style?: React.CSSProperties;
 }
 
 interface MultiPanelState {
     isDragging: boolean;
     activeSplitter: number | null;
     startPosition: number;
-    startSizes: number[]; 
-    paneSizes: number[];  
+    startSizes: number[];
+    paneSizes: number[];
 }
 
 export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState> {
@@ -110,9 +110,9 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
         const children = React.Children.toArray(this.props.children);
         const child = children[index] as React.ReactElement;
         if (child && child.type === Panel) {
-            return (child.props as PanelProps).minSize || 10; 
+            return (child.props as PanelProps).minSize || 10;
         }
-        return this.props.minSize || 10; 
+        return this.props.minSize || 10;
     }
 
     getPaneDefaultSizePercent = (index: number): number | undefined => {
@@ -287,6 +287,27 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
             );
         }
         const theme = this.getTheme();
+        if (childrenArray.length === 1) {
+            return (
+                <div
+                    ref={this.containerRef}
+                    style={containerStyle}
+                >
+                    <div
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            overflow: 'hidden',
+                            boxSizing: 'border-box',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        {childrenArray[0]}
+                    </div>
+                </div>
+            );
+        }
         if (paneSizes.length === 0 || paneSizes.length !== childrenArray.length) {
             return (
                 <div
@@ -297,6 +318,12 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                 </div>
             );
         }
+        const containerSize = direction === 'horizontal'
+            ? this.containerRef.current.offsetWidth
+            : this.containerRef.current.offsetHeight;
+        const panePercentages = paneSizes.map(size =>
+            containerSize > 0 ? (size / containerSize) * 100 : 100 / childrenArray.length
+        );
         return (
             <div
                 ref={this.containerRef}
@@ -306,9 +333,10 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                     <React.Fragment key={index}>
                         <div
                             style={{
-                                [direction === 'horizontal' ? 'width' : 'height']: `${paneSizes[index]}px`,
-                                overflow: 'hidden',
+                                flexBasis: `${panePercentages[index]}%`,
+                                flexGrow: 0,
                                 flexShrink: 0,
+                                overflow: 'hidden',
                                 boxSizing: 'border-box',
                                 display: 'flex',
                                 flexDirection: 'column'
