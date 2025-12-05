@@ -1,6 +1,6 @@
 {
   "name": "multi-panel",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "A front-end component that supports dynamic area segmentation and nesting of multiple panels.",
   "license": "Apache2.0",
   "author": "happyboy",

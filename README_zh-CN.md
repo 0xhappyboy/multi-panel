@@ -56,7 +56,7 @@ function App() {
 │     33%     │     33%     │     33%    │
 │   Panel 1   │   Panel 2   │   Panel 3  │
 └─────────────┴─────────────┴────────────┘
-        用户拖拽分割线 ↓
+              用户拖拽分割线 ↓
 ┌────────────────────────────────────────┐
 │          拖拽后状态                     │
 ├───────────┬───────────────┬────────────┤
@@ -69,17 +69,37 @@ function App() {
 
 ### MultiPanel Props
 
-| 属性           | 类型                                   | 默认值         | 描述               |
-| -------------- | -------------------------------------- | -------------- | ------------------ |
-| `direction`    | `'horizontal' \| 'vertical'`           | `'horizontal'` | 分割方向           |
-| `initialSizes` | `number[]`                             | 等分           | 初始大小百分比数组 |
-| `minSize`      | `number`                               | `50`           | 面板最小像素尺寸   |
-| `splitterSize` | `number`                               | `2`            | 分割线像素宽度     |
-| `theme`        | `'light' \| 'dark' \| MultiPanelTheme` | `'light'`      | 主题配置           |
+| Prop                | Type                                   | Default        | Description              |
+| ------------------- | -------------------------------------- | -------------- | ------------------------ |
+| `direction`         | `'horizontal' \| 'vertical'`           | `'horizontal'` | 分割方向                 |
+| `initialSizes`      | `number[]`                             | 等分           | 初始尺寸数组（像素值）   |
+| `minSize`           | `number`                               | `50`           | 全局最小像素尺寸         |
+| `splitterSize`      | `number`                               | `2`            | 分割线像素宽度           |
+| `theme`             | `'light' \| 'dark' \| MultiPanelTheme` | `'light'`      | 主题配置                 |
+| `onPaneSizesChange` | `(sizes: number[]) => void`            | -              | 面板尺寸变化时的回调函数 |
+| `style`             | `React.CSSProperties`                  | -              | 自定义容器样式           |
 
 ### Panel Props
 
-| 属性      | 类型                  | 默认值 | 描述             |
-| --------- | --------------------- | ------ | ---------------- |
-| `minSize` | `number`              | `50`   | 面板最小像素尺寸 |
-| `style`   | `React.CSSProperties` | -      | 自定义样式       |
+| Prop          | Type                  | Default | Description            |
+| ------------- | --------------------- | ------- | ---------------------- |
+| `minSize`     | `number`              | `10`    | 面板最小尺寸（百分比） |
+| `defaultSize` | `number`              | -       | 面板默认尺寸（百分比） |
+| `style`       | `React.CSSProperties` | -       | 自定义面板样式         |
+
+### 预定义主题
+
+```typescript
+const MultiPanelThemes = {
+  light: {
+    splitterColor: "#e8e8e8",
+    splitterHoverColor: "#d9d9d9",
+    splitterActiveColor: "#e8e8e8",
+  } as MultiPanelTheme,
+  dark: {
+    splitterColor: "#434343",
+    splitterHoverColor: "#595959",
+    splitterActiveColor: "#434343",
+  } as MultiPanelTheme,
+};
+```
