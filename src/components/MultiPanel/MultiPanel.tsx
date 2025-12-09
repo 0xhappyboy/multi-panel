@@ -50,7 +50,7 @@ export interface MultiPanelProps {
     splitterSize?: number;
     children?: React.ReactNode;
     theme?: 'light' | 'dark' | MultiPanelTheme;
-    onPaneSizesChange?: (sizes: number[]) => void;
+    onPaneSizesChange?: (sizes: [number, number][]) => void;
     style?: React.CSSProperties;
 }
 
@@ -179,8 +179,19 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
     triggerPaneSizesChange = () => {
         const { onPaneSizesChange } = this.props;
         const { paneSizes } = this.state;
-        if (onPaneSizesChange && paneSizes.length > 0) {
-            onPaneSizesChange(paneSizes);
+        if (onPaneSizesChange && paneSizes.length > 0 && this.containerRef.current) {
+            const container = this.containerRef.current;
+            const containerWidth = container.offsetWidth;
+            const containerHeight = container.offsetHeight;
+            const { direction = 'horizontal' } = this.props;
+            const sizes2D: [number, number][] = paneSizes.map((size, index) => {
+                if (direction === 'horizontal') {
+                    return [size, containerHeight];
+                } else {
+                    return [containerWidth, size];
+                }
+            });
+            onPaneSizesChange(sizes2D);
         }
     }
 
@@ -212,10 +223,9 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
         if (newLeftSize >= leftMinSize && newRightSize >= rightMinSize) {
             newSizes[leftPaneIndex] = newLeftSize;
             newSizes[rightPaneIndex] = newRightSize;
-            this.setState({ paneSizes: newSizes });
-            if (onPaneSizesChange) {
-                onPaneSizesChange(newSizes);
-            }
+            this.setState({ paneSizes: newSizes }, () => {
+                this.triggerPaneSizesChange();
+            });
         }
     }
 
