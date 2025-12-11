@@ -1,5 +1,5 @@
 import React from 'react';
-
+import ResizeObserver from 'resize-observer-polyfill';
 export interface MultiPanelTheme {
     splitterColor: string;
     splitterHoverColor: string;
@@ -60,10 +60,14 @@ interface MultiPanelState {
     startPosition: number;
     startSizes: number[];
     paneSizes: number[];
+    containerWidth: number;
+    containerHeight: number;
 }
 
 export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState> {
     private containerRef: React.RefObject<HTMLDivElement | null>;
+    private resizeObserver: ResizeObserver | null;
+    private animationFrameId: number | null;
 
     constructor(props: MultiPanelProps) {
         super(props);
@@ -72,30 +76,107 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
             activeSplitter: null,
             startPosition: 0,
             startSizes: [],
-            paneSizes: []
+            paneSizes: [],
+            containerWidth: 0,
+            containerHeight: 0
         };
         this.containerRef = React.createRef<HTMLDivElement | null>();
+        this.resizeObserver = null;
+        this.animationFrameId = null;
     }
 
     componentDidMount() {
-        this.initializePaneSizes();
+        this.setupResizeObserver();
         document.addEventListener('mousemove', this.handleMouseMove);
         document.addEventListener('mouseup', this.handleMouseUp);
+        requestAnimationFrame(() => {
+            this.initializePaneSizes();
+        });
     }
 
     componentWillUnmount() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+        }
         document.removeEventListener('mousemove', this.handleMouseMove);
         document.removeEventListener('mouseup', this.handleMouseUp);
     }
 
     componentDidUpdate(prevProps: MultiPanelProps, prevState: MultiPanelState) {
         if (prevProps.children !== this.props.children) {
-            this.initializePaneSizes();
+            requestAnimationFrame(() => {
+                this.initializePaneSizes();
+            });
         }
+        if (prevState.containerWidth !== this.state.containerWidth || 
+            prevState.containerHeight !== this.state.containerHeight) {
+            requestAnimationFrame(() => {
+                this.adjustPaneSizesOnContainerResize(prevState);
+            });
+        }
+    }
 
-        if (prevProps.style !== this.props.style) {
-            this.initializePaneSizes();
+    setupResizeObserver = () => {
+        if (typeof ResizeObserver !== 'undefined' && this.containerRef.current?.parentElement) {
+            this.resizeObserver = new ResizeObserver((entries) => {
+                for (let entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    if (this.animationFrameId) {
+                        cancelAnimationFrame(this.animationFrameId);
+                    }
+                    this.animationFrameId = requestAnimationFrame(() => {
+                        this.setState({
+                            containerWidth: width,
+                            containerHeight: height
+                        });
+                        this.animationFrameId = null;
+                    });
+                }
+            });
+            this.resizeObserver.observe(this.containerRef.current.parentElement);
+        } else {
+            window.addEventListener('resize', this.handleWindowResize);
         }
+    }
+
+    handleWindowResize = () => {
+        if (this.containerRef.current?.parentElement) {
+            const parent = this.containerRef.current.parentElement;
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+            }
+            this.animationFrameId = requestAnimationFrame(() => {
+                this.setState({
+                    containerWidth: width,
+                    containerHeight: height
+                });
+                this.animationFrameId = null;
+            });
+        }
+    }
+
+    adjustPaneSizesOnContainerResize = (prevState: MultiPanelState) => {
+        const { direction = 'horizontal', children } = this.props;
+        const { paneSizes, containerWidth, containerHeight } = this.state;
+        const childrenArray = React.Children.toArray(children);
+        if (paneSizes.length === 0 || childrenArray.length === 0) {
+            return;
+        }
+        const containerSize = direction === 'horizontal' ? containerWidth : containerHeight;
+        const prevContainerSize = direction === 'horizontal' ? prevState.containerWidth : prevState.containerHeight;
+        if (containerSize <= 0 || prevContainerSize <= 0) {
+            return;
+        }
+        const scale = containerSize / prevContainerSize;
+        const newPaneSizes = paneSizes.map(size => size * scale);
+        this.setState({ paneSizes: newPaneSizes }, () => {
+            this.triggerPaneSizesChange();
+        });
     }
 
     getTheme = (): MultiPanelTheme => {
@@ -125,24 +206,22 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
     }
 
     getPaneMinSizePixels = (index: number): number => {
-        if (!this.containerRef.current) return 0;
-        const containerSize = this.props.direction === 'horizontal'
-            ? this.containerRef.current.offsetWidth
-            : this.containerRef.current.offsetHeight;
+        const { direction = 'horizontal' } = this.props;
+        const { containerWidth, containerHeight } = this.state;
+        const containerSize = direction === 'horizontal' ? containerWidth : containerHeight;
         const minPercent = this.getPaneMinSizePercent(index);
         return (containerSize * minPercent) / 100;
     }
 
     initializePaneSizes = () => {
+        const { direction = 'horizontal', initialSizes } = this.props;
         const children = React.Children.toArray(this.props.children);
-        const { initialSizes } = this.props;
-        if (!this.containerRef.current) {
+        const { containerWidth, containerHeight } = this.state;
+        const containerSize = direction === 'horizontal' ? containerWidth : containerHeight;
+        if (containerSize <= 0) {
             setTimeout(this.initializePaneSizes, 50);
             return;
         }
-        const containerSize = this.props.direction === 'horizontal'
-            ? this.containerRef.current.offsetWidth
-            : this.containerRef.current.offsetHeight;
         let paneSizes: number[];
         if (initialSizes && initialSizes.length === children.length) {
             paneSizes = [...initialSizes];
@@ -151,6 +230,7 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                 this.getPaneDefaultSizePercent(index)
             );
             const hasDefaultSizes = defaultSizesPercent.some(size => size !== undefined);
+            
             if (hasDefaultSizes) {
                 const definedSizesSum = defaultSizesPercent
                     .filter(size => size !== undefined)
@@ -158,6 +238,7 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                 const undefinedCount = defaultSizesPercent.filter(size => size === undefined).length;
                 const remainingPercent = 100 - definedSizesSum;
                 const equalSizeForUndefined = undefinedCount > 0 ? remainingPercent / undefinedCount : 0;
+                
                 const percentSizes = defaultSizesPercent.map((size, index) => {
                     if (size !== undefined) {
                         return size;
@@ -165,12 +246,14 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                         return equalSizeForUndefined;
                     }
                 });
+                
                 paneSizes = percentSizes.map(percent => (containerSize * percent) / 100);
             } else {
                 const equalSize = containerSize / children.length;
                 paneSizes = Array(children.length).fill(equalSize);
             }
         }
+        
         this.setState({ paneSizes }, () => {
             this.triggerPaneSizesChange();
         });
@@ -178,12 +261,10 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
 
     triggerPaneSizesChange = () => {
         const { onPaneSizesChange } = this.props;
-        const { paneSizes } = this.state;
-        if (onPaneSizesChange && paneSizes.length > 0 && this.containerRef.current) {
-            const container = this.containerRef.current;
-            const containerWidth = container.offsetWidth;
-            const containerHeight = container.offsetHeight;
-            const { direction = 'horizontal' } = this.props;
+        const { paneSizes, containerWidth, containerHeight } = this.state;
+        const { direction = 'horizontal' } = this.props;
+        
+        if (onPaneSizesChange && paneSizes.length > 0 && containerWidth > 0) {
             const sizes2D: [number, number][] = paneSizes.map((size, index) => {
                 if (direction === 'horizontal') {
                     return [size, containerHeight];
@@ -209,8 +290,9 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
     handleMouseMove = (e: MouseEvent) => {
         if (!this.state.isDragging) return;
         const { activeSplitter, startSizes } = this.state;
-        const { direction = 'horizontal', onPaneSizesChange } = this.props;
-        if (activeSplitter === null || !this.containerRef.current) return;
+        const { direction = 'horizontal' } = this.props;
+        if (activeSplitter === null) return;
+        
         const currentPosition = this.getClientPosition(e);
         const delta = currentPosition - this.state.startPosition;
         const newSizes = [...startSizes];
@@ -220,6 +302,7 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
         const newRightSize = startSizes[rightPaneIndex] - delta;
         const leftMinSize = this.getPaneMinSizePixels(leftPaneIndex);
         const rightMinSize = this.getPaneMinSizePixels(rightPaneIndex);
+        
         if (newLeftSize >= leftMinSize && newRightSize >= rightMinSize) {
             newSizes[leftPaneIndex] = newLeftSize;
             newSizes[rightPaneIndex] = newRightSize;
@@ -257,18 +340,19 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
     }
 
     getPaneSizesPercent = (): number[] => {
-        if (!this.containerRef.current || this.state.paneSizes.length === 0) {
+        const { direction = 'horizontal' } = this.props;
+        const { paneSizes, containerWidth, containerHeight } = this.state;
+        const containerSize = direction === 'horizontal' ? containerWidth : containerHeight;
+        
+        if (containerSize <= 0 || paneSizes.length === 0) {
             return [];
         }
-        const containerSize = this.props.direction === 'horizontal'
-            ? this.containerRef.current.offsetWidth
-            : this.containerRef.current.offsetHeight;
-        return this.state.paneSizes.map(size => (size / containerSize) * 100);
+        return paneSizes.map(size => (size / containerSize) * 100);
     }
 
     render() {
         const { direction = 'horizontal', splitterSize = 2, children, style } = this.props;
-        const { isDragging, paneSizes } = this.state;
+        const { isDragging, paneSizes, containerWidth, containerHeight } = this.state;
         const childrenArray = React.Children.toArray(children);
         const baseContainerStyle: React.CSSProperties = {
             display: 'flex',
@@ -276,7 +360,9 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
             height: '100%',
             flexDirection: direction === 'horizontal' ? 'row' : 'column',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            minWidth: '100px', 
+            minHeight: '100px' 
         };
         const containerStyle: React.CSSProperties = {
             ...baseContainerStyle,
@@ -328,9 +414,7 @@ export class MultiPanel extends React.Component<MultiPanelProps, MultiPanelState
                 </div>
             );
         }
-        const containerSize = direction === 'horizontal'
-            ? this.containerRef.current.offsetWidth
-            : this.containerRef.current.offsetHeight;
+        const containerSize = direction === 'horizontal' ? containerWidth : containerHeight;
         const panePercentages = paneSizes.map(size =>
             containerSize > 0 ? (size / containerSize) * 100 : 100 / childrenArray.length
         );
